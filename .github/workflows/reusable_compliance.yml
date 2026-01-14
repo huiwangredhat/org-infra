@@ -13,6 +13,10 @@ on:
         required: false
         type: boolean
         default: false
+      complybeacon_url:
+        description: 'Endpoint to push evidence to'
+        required: true
+        type: string
     secrets:
       source_token:
         description: 'GitHub token to use for uploading artifacts and attestations'
@@ -107,3 +111,27 @@ jobs:
         with:
           name: ampel.intoto.json
           path: ampel.intoto.json
+      
+      - name: Setup Python
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1
+        with:
+          python-version: '3.13'
+
+      - name: Convert Ampel Result to Evidence Format
+        run: |
+          # Verify file exists first to avoid confusing errors
+          if [ ! -f "compliance/convert_ampel_to_evidence.py" ]; then
+            echo "::error::Conversion script not found at compliance/convert_ampel_to_evidence.py"
+            exit 1
+          fi
+          
+          # Using the actual generated file (ampel.intoto.json) as input, not sample.json
+          python3 compliance/convert_ampel_to_evidence.py ampel.intoto.json evidence.json
+
+      - name: Inject Evidence to ComplyBeacon
+        env:
+          TARGET_URL: ${{ inputs.complybeacon_url }}
+        run: |
+          curl --fail -v -X POST "$TARGET_URL" \
+            -H "Content-Type: application/json" \
+            -d @evidence.json
