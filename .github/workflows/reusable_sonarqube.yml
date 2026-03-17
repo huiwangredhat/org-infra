@@ -27,13 +27,17 @@ on:
         required: false
         type: string
         description: 'The Sonar Scanner property for coverage, e.g., sonar.typescript.lcov.reportPaths.'
+      app_id:
+        required: true
+        type: string
+        description: 'GitHub App ID for token generation.'
     secrets:
       SONAR_TOKEN:
         required: true
         description: 'The SonarCloud analysis token.'
-      source_token:
+      GH_APP_PRIVATE_KEY:
         required: true
-        description: 'GitHub Token'
+        description: 'GitHub App private key for token generation.'
 
 permissions:
   contents: none
@@ -49,6 +53,13 @@ jobs:
       pull-requests: read
 
     steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
+        with:
+          app-id: "${{ inputs.app_id }}"
+          private-key: "${{ secrets.GH_APP_PRIVATE_KEY }}"
+
       - name: Checkout Repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -70,7 +81,7 @@ jobs:
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
         env:
-          GITHUB_TOKEN: ${{ secrets.source_token }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_ORGANIZATION: ${{ inputs.sonar_organization }}
           SONAR_PROJECT_KEY: ${{ inputs.sonar_project_key }}
